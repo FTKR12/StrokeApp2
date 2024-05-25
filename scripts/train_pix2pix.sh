@@ -1,0 +1,11 @@
+python train.py \
+    --dataroot /mnt/strokeapp/Datasets/merged_ctmri \
+    --name pix2pix \
+    --model pix2pix \
+    --netG unet_256 \
+    --direction AtoB \
+    --lambda_L1 100 \
+    --dataset_mode aligned \
+    --norm batch \
+    --pool_size 0 \
+    --gpu_ids 0
