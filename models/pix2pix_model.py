@@ -83,6 +83,7 @@ class Pix2PixModel(BaseModel):
         AtoB = self.opt.direction == 'AtoB'
         self.real_A = input['A' if AtoB else 'B'].to(self.device)
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
+        self.mask = input['mask' if AtoB else 'mask'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def forward(self):
@@ -147,4 +148,40 @@ class Pix2PixModel(BaseModel):
         fake_B = self.fake_B.cpu().data.numpy()
         real_B = real_B*0.5 + 0.5
         fake_B = fake_B*0.5 + 0.5
-        return ssim(np.squeeze(fake_B),np.squeeze(real_B),data_range=fake_B.max()-fake_B.min())
+        return ssim(np.squeeze(fake_B),np.squeeze(real_B),data_range=fake_B.max()-fake_B.min()+0.0001)
+
+    def calc_psnr_ls(self):
+        real_B = self.real_B.cpu().data.numpy()
+        fake_B = self.fake_B.cpu().data.numpy()
+        mask = self.mask.cpu().data.numpy()
+        real_B = real_B*0.5 + 0.5
+        fake_B = fake_B*0.5 + 0.5
+
+        real_B = real_B * mask
+        fake_B = fake_B * mask
+
+        return psnr(fake_B/(fake_B.max()+0.000001), real_B/(real_B.max()+0.000001))
+
+    def calc_l1_ls(self):
+        real_B = self.real_B.cpu().data.numpy()
+        fake_B = self.fake_B.cpu().data.numpy()
+        mask = self.mask.cpu().data.numpy()
+        real_B = real_B*0.5 + 0.5
+        fake_B = fake_B*0.5 + 0.5
+
+        real_B = real_B * mask
+        fake_B = fake_B * mask
+
+        return abs(fake_B-real_B).mean()
+
+    def calc_ssim_ls(self):
+        real_B = self.real_B.cpu().data.numpy()
+        fake_B = self.fake_B.cpu().data.numpy()
+        mask = self.mask.cpu().data.numpy()
+        real_B = real_B*0.5 + 0.5
+        fake_B = fake_B*0.5 + 0.5
+
+        real_B = real_B * mask
+        fake_B = fake_B * mask
+        
+        return ssim(np.squeeze(fake_B),np.squeeze(real_B),data_range=fake_B.max()-fake_B.min()+0.0001)

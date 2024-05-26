@@ -72,16 +72,30 @@ if __name__ == '__main__':
     test_psnr = []
     test_ssim = []
     test_l1 = []
+    test_psnr_ls = []
+    test_ssim_ls = []
+    test_l1_ls = []
     for i, data in enumerate(dataset):
-        model.set_input(data)  # unpack data from data loader
-        model.test()           # run inference
-        visuals = model.get_current_visuals()  # get image results
-        img_path = model.get_image_paths()     # get image paths
-        print('processing (%04d)-th image... %s' % (i, img_path))
-        save_images(webpage, visuals, img_path, aspect_ratio=opt.aspect_ratio, width=opt.display_winsize, use_wandb=opt.use_wandb)
-        test_psnr.append(model.calc_psnr())
-        test_ssim.append(model.calc_ssim())
-        test_l1.append(model.calc_l1())
+        if data['A'].max() == -1:
+            pass
+        else:
+            model.set_input(data)  # unpack data from data loader
+            model.test()           # run inference
+            visuals = model.get_current_visuals()  # get image results
+            img_path = model.get_image_paths()     # get image paths
+            print('processing (%04d)-th image... %s' % (i, img_path))
+            save_images(webpage, visuals, img_path, aspect_ratio=opt.aspect_ratio, width=opt.display_winsize, use_wandb=opt.use_wandb)
+            test_psnr.append(model.calc_psnr())
+            test_ssim.append(model.calc_ssim())
+            test_l1.append(model.calc_l1())
+
+        if data['A'].max() != -1 and data['B'].max() != -1:
+            if data["mask"].max() == 1:
+                print(model.calc_psnr_ls())
+                test_psnr_ls.append(model.calc_psnr_ls())
+                test_ssim_ls.append(model.calc_ssim_ls())
+                test_l1_ls.append(model.calc_l1_ls())
+
     webpage.save()  # save the HTML
     log_name = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.txt')
     with open(log_name, "a") as log_file:
@@ -90,4 +104,6 @@ if __name__ == '__main__':
         log_file.write(f'psnr: {np.mean(test_psnr)}({np.std(test_psnr)})\n')
         log_file.write(f'ssim: {np.mean(test_ssim)}({np.std(test_ssim)})\n')
         log_file.write(f'l1: {np.mean(test_l1)}({np.std(test_l1)})\n')
-
+        log_file.write(f'psnr_ls: {np.mean(test_psnr_ls)}({np.std(test_psnr_ls)})\n')
+        log_file.write(f'ssim_ls: {np.mean(test_ssim_ls)}({np.std(test_ssim_ls)})\n')
+        log_file.write(f'l1_ls: {np.mean(test_l1_ls)}({np.std(test_l1_ls)})\n')

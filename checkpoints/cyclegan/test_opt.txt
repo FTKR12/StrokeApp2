@@ -16,6 +16,7 @@
                   isTrain: False                         	[default: None]
                 load_iter: 0                             	[default: 0]
                 load_size: 256                           
+                 maskroot: /mnt/strokeapp/Datasets/merged_mask	[default: None]
          max_dataset_size: inf                           
                     model: cycle_gan                     	[default: test]
                n_layers_D: 3                             

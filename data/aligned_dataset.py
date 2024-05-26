@@ -67,10 +67,10 @@ class RandomHorizontalFlip(torch.nn.Module):
         super().__init__()
         self.p = p
 
-    def forward(self, ct, mri):
+    def forward(self, ct, mri, mask):
         if torch.rand(1) < self.p:
-            return F.hflip(ct), F.hflip(mri)
-        return ct, mri
+            return F.hflip(ct), F.hflip(mri), F.hflip(mask)
+        return ct, mri, mask
 
 
     def __repr__(self) -> str:
@@ -82,10 +82,10 @@ class RandomVerticalFlip(torch.nn.Module):
         super().__init__()
         self.p = p
 
-    def forward(self, ct, mri):
+    def forward(self, ct, mri, mask):
         if torch.rand(1) < self.p:
-            return F.vflip(ct), F.vflip(mri)
-        return ct, mri
+            return F.vflip(ct), F.vflip(mri), F.vflip(mask)
+        return ct, mri, mask
 
 
     def __repr__(self) -> str:
@@ -106,7 +106,9 @@ class AlignedDataset(BaseDataset):
         """
         BaseDataset.__init__(self, opt)
         self.dir_AB = os.path.join(opt.dataroot, opt.phase)  # get the image directory
+        self.dir_mask = os.path.join(opt.maskroot, opt.phase)  # get the image directory
         self.AB_paths = sorted(make_dataset(self.dir_AB))  # get image paths
+        self.mask_paths = sorted(make_dataset(self.dir_mask))  # get image paths
         #assert(self.opt.load_size >= self.opt.crop_size)   # crop_size should be smaller than the size of loaded image
         self.input_nc = self.opt.output_nc if self.opt.direction == 'BtoA' else self.opt.input_nc
         self.output_nc = self.opt.input_nc if self.opt.direction == 'BtoA' else self.opt.output_nc
@@ -124,7 +126,9 @@ class AlignedDataset(BaseDataset):
             B_paths (str) - - image paths (same as A_paths)
         """
         AB_path = self.AB_paths[index]
+        mask_path = self.AB_paths[index]
         AB = Image.open(AB_path).convert('I;16')
+        mask = Image.open(mask_path).convert('L')
         w, h = AB.size
         w2 = int(w / 2)
         A = AB.crop((0, 0, w2, h)).resize((self.opt.load_size, self.opt.load_size), Image.BICUBIC)
@@ -132,11 +136,12 @@ class AlignedDataset(BaseDataset):
         
         # aug
         if self.opt.phase == 'train':
-            A, B = RandomHorizontalFlip(0.5)(A, B)
-            A, B = RandomVerticalFlip(0.5)(A, B)
+            A, B, mask = RandomHorizontalFlip(0.5)(A, B, mask)
+            A, B, mask = RandomVerticalFlip(0.5)(A, B, mask)
         
         A = transforms.ToTensor()(A)
         B = transforms.ToTensor()(B)
+        mask = transforms.ToTensor()(mask)
 
         A = A / 5000
         B = B / 5000
@@ -145,6 +150,7 @@ class AlignedDataset(BaseDataset):
         h_offset = random.randint(0, max(0, self.opt.load_size - self.opt.load_size - 1))
         A = A[:, h_offset:h_offset + self.opt.load_size, w_offset:w_offset + self.opt.load_size]
         B = B[:, h_offset:h_offset + self.opt.load_size, w_offset:w_offset + self.opt.load_size]
+        mask = mask[:, h_offset:h_offset + self.opt.load_size, w_offset:w_offset + self.opt.load_size]
 
         A = transforms.Normalize((0.5), (0.5))(A)
         B = transforms.Normalize((0.5), (0.5))(B)
@@ -155,7 +161,7 @@ class AlignedDataset(BaseDataset):
             A = A.index_select(2, idx)
             B = B.index_select(2, idx)
 
-        return {'A': A, 'B': B, 'A_paths': AB_path, 'B_paths': AB_path}
+        return {'A': A, 'B': B, 'A_paths': AB_path, 'B_paths': AB_path, 'mask': mask, 'mask_path': mask_path}
 
     def __len__(self):
         """Return the total number of images in the dataset."""
